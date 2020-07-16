@@ -8,5 +8,4 @@
 ---
 fixes:
   - |
-    Restore the string slices read behavior while reading configuration in
-    the environment variables.
+    Restore support of JSON-formatted lists for configuration options passed as environment variables.
