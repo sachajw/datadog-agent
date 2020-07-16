@@ -11,12 +11,19 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/common"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
+
+type ec2Token struct {
+	expirationDate time.Time
+	value          string
+	sync.RWMutex
+}
 
 // declare these as vars not const to ease testing
 var (
@@ -25,7 +32,8 @@ var (
 	timeout            = 100 * time.Millisecond
 	oldDefaultPrefixes = []string{"ip-", "domu"}
 	defaultPrefixes    = []string{"ip-", "domu", "ec2amaz-"}
-
+	tokenLifetime      = 21600 * time.Second
+	token              = ec2Token{}
 	// CloudProviderName contains the inventory name of for EC2
 	CloudProviderName = "AWS"
 )
@@ -194,6 +202,18 @@ func doHTTPRequest(url string, method string, headers map[string]string, retriab
 }
 
 func getToken() (string, error) {
+	token.RLock()
+	// Refresh 15 seconds before expiration
+	if time.Now().Before(token.expirationDate.Add(-15 * time.Second)) {
+		val := token.value
+		token.RUnlock()
+		return val, nil
+	}
+
+	token.RUnlock()
+	token.Lock()
+	defer token.Unlock()
+
 	client := http.Client{
 		Timeout: timeout,
 	}
@@ -203,7 +223,7 @@ func getToken() (string, error) {
 		return "", err
 	}
 
-	req.Header.Add("X-aws-ec2-metadata-token-ttl-seconds", "60")
+	req.Header.Add("X-aws-ec2-metadata-token-ttl-seconds", fmt.Sprintf("%d", int(tokenLifetime.Seconds())))
 	res, err := client.Do(req)
 	if err != nil {
 		return "", err
@@ -218,8 +238,9 @@ func getToken() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to read response body, %s", err)
 	}
-
-	return string(all), nil
+	token.value = string(all)
+	token.expirationDate = time.Now().Add(tokenLifetime)
+	return token.value, nil
 }
 
 // IsDefaultHostname returns whether the given hostname is a default one for EC2
