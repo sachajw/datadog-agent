@@ -99,11 +99,7 @@ func ExtractBatchInto(buffer []network.ConnectionStats, b *batch, start, end int
 		return nil
 	}
 
-	var (
-		connSize = unsafe.Sizeof(C.tcp_conn_t{})
-		current  = uintptr(unsafe.Pointer(b)) + uintptr(start)*connSize
-	)
-
+	current := uintptr(unsafe.Pointer(b)) + uintptr(start)*C.sizeof_tcp_conn_t
 	for i := start; i < end; i++ {
 		ct := TCPConn(*(*C.tcp_conn_t)(unsafe.Pointer(current)))
 
@@ -112,7 +108,7 @@ func ExtractBatchInto(buffer []network.ConnectionStats, b *batch, start, end int
 		tst := TCPStats(ct.tcp_stats)
 
 		buffer = append(buffer, connStats(&tup, &cst, &tst))
-		current += connSize
+		current += C.sizeof_tcp_conn_t
 	}
 
 	return buffer
@@ -131,21 +127,27 @@ func connStats(t *ConnTuple, s *ConnStatsWithTimestamp, tcpStats *TCPStats) netw
 		dest = util.V6Address(uint64(t.daddr_l), uint64(t.daddr_h))
 	}
 
+	tcpEstablished := uint32(0)
+	if tcpStats.ktime_established > 0 {
+		tcpEstablished = uint32(1)
+	}
+
 	return network.ConnectionStats{
-		Pid:                  uint32(t.pid),
-		Type:                 connType(metadata),
-		Family:               family,
-		NetNS:                uint32(t.netns),
-		Source:               source,
-		Dest:                 dest,
-		SPort:                uint16(t.sport),
-		DPort:                uint16(t.dport),
-		MonotonicSentBytes:   uint64(s.sent_bytes),
-		MonotonicRecvBytes:   uint64(s.recv_bytes),
-		MonotonicRetransmits: uint32(tcpStats.retransmits),
-		RTT:                  uint32(tcpStats.rtt),
-		RTTVar:               uint32(tcpStats.rtt_var),
-		LastUpdateEpoch:      uint64(s.timestamp),
+		Pid:                     uint32(t.pid),
+		Type:                    connType(metadata),
+		Family:                  family,
+		NetNS:                   uint32(t.netns),
+		Source:                  source,
+		Dest:                    dest,
+		SPort:                   uint16(t.sport),
+		DPort:                   uint16(t.dport),
+		MonotonicSentBytes:      uint64(s.sent_bytes),
+		MonotonicRecvBytes:      uint64(s.recv_bytes),
+		MonotonicRetransmits:    uint32(tcpStats.retransmits),
+		MonotonicTCPEstablished: tcpEstablished,
+		RTT:                     uint32(tcpStats.rtt),
+		RTTVar:                  uint32(tcpStats.rtt_var),
+		LastUpdateEpoch:         uint64(s.timestamp),
 	}
 }
 

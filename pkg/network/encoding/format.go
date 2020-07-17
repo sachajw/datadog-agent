@@ -17,6 +17,7 @@ func FormatConnection(conn network.ConnectionStats) *model.Connection {
 		LastBytesSent:          conn.LastSentBytes,
 		LastBytesReceived:      conn.LastRecvBytes,
 		LastRetransmits:        conn.LastRetransmits,
+		LastTcpEstablished:     conn.LastTCPEstablished,
 		Rtt:                    conn.RTT,
 		RttVar:                 conn.RTTVar,
 		Direction:              formatDirection(conn.Direction),

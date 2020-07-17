@@ -58,6 +58,9 @@ typedef struct {
     __u32 retransmits;
     __u32 rtt;
     __u32 rtt_var;
+
+    // kernel timestamps (generated via `bpf_ktime_get_boot_ns`) of TCP state transitions
+    __u64 ktime_established;
 } tcp_stats_t;
 
 // Full data for a tcp connection
