@@ -1,0 +1,28 @@
+version: '3'
+services:
+  datadog:
+    image: "datadog/agent-arm64:7.21.1"
+    environment:
+       DD_SYSTEM_PROBE_ENABLED: 'true'
+       DD_PROCESS_AGENT_ENABLED: 'true'
+       DD_API_KEY: '411fac324173944ec140c1dd1b67861b'
+       DD_TAGS: 'NOORDHOEK'
+       DD_SITE: 'datadoghq.eu'
+       DD_APM_ENABLED: 'true'
+       DD_LOGS_ENABLED: 'true'
+       DD_HEALTH_PORT: '5555'
+
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - /proc/:/host/proc/:ro
+    - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    - /sys/kernel/debug:/sys/kernel/debug
+    cap_add:
+    - SYS_ADMIN
+    - SYS_RESOURCE
+    - SYS_PTRACE
+    - NET_ADMIN
+    - IPC_LOCK
+    security_opt:
+    - apparmor:unconfined
+
